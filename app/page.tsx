@@ -38,10 +38,10 @@ export default async function Home() {
           Dynamic regulatory-state ontology
         </p>
         <h1 className="max-w-4xl text-4xl font-semibold leading-tight text-ink md:text-6xl">
-          Adaptive phenotype stratification questionnaire for LongCovid
+          LongCovid phenotype stratification
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-          a comprehensive review of symptoms into explainable regulatory-state hypotheses; this is not a diagnosis
+          A comprehensive review of symptoms into explainable regulatory-state; this is not a diagnosis.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link className="focus-ring rounded-md bg-clinical px-5 py-3 font-medium text-white shadow-soft" href="/intake">
