@@ -2,7 +2,7 @@
 
 A local-first MVP for adaptive post-viral / neuroimmune recovery phenotyping.
 
-This is not a disease ontology or diagnosis engine. It models symptoms as observable regulatory-state indicators and maps intake answers into explainable phenotype candidates, functional domains, candidate mechanism hypotheses, trigger signals, intervention-response signals, and suggested pathways.
+This models symptoms as observable regulatory-state indicators and maps intake answers into explainable phenotype candidates, functional domains, candidate mechanism hypotheses, trigger signals, intervention-response signals, and suggested pathways.
 
 ## Stack
 
