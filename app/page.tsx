@@ -38,7 +38,7 @@ export default async function Home() {
           Dynamic regulatory-state ontology
         </p>
         <h1 className="max-w-4xl text-4xl font-semibold leading-tight text-ink md:text-6xl">
-          Adaptive phenotype stratification for post-viral recovery signals.
+          Adaptive phenotype stratification questionnaire for LongCovid
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
           Collect symptom, trigger, timing, intervention-response, and outcome data, then map
