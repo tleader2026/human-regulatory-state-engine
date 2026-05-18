@@ -37,6 +37,7 @@ model Question {
   parentValue   String?
   isActive      Boolean        @default(true)
   answerOptions AnswerOption[]
+  answers       PatientAnswer[]
 }
 
 model AnswerOption {

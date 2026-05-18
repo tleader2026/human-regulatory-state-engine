@@ -4,7 +4,9 @@ import { ScoreBar } from "@/components/ScoreBar";
 import { prisma } from "@/lib/prisma";
 import { calculateSessionScores } from "@/lib/scoring";
 import type { RankedScore } from "@/lib/types";
-import type { FunctionalDomain } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+
+type ResultDomain = Prisma.FunctionalDomainGetPayload<object>;
 
 export default async function ResultsPage({ params }: { params: { sessionId: string } }) {
   const session = await prisma.intakeSession.findUnique({
@@ -15,7 +17,7 @@ export default async function ResultsPage({ params }: { params: { sessionId: str
 
   const result = await calculateSessionScores(session.id);
   const domainColors = await prisma.functionalDomain.findMany();
-  const colorByName = new Map(domainColors.map((domain: FunctionalDomain) => [domain.name, domain.color]));
+  const colorByName = new Map(domainColors.map((domain: ResultDomain) => [domain.name, domain.color]));
   const topPhenotype = result.phenotypes[0];
   const phenotype = topPhenotype
     ? await prisma.phenotype.findUnique({ where: { name: topPhenotype.label }, include: { pathway: true } })

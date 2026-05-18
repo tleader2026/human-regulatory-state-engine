@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 
 type EditableModel =
   | "functionalDomain"
@@ -40,33 +39,61 @@ export async function updateOntologyItem(formData: FormData) {
   if (field === "isActive") value = rawValue === "true";
   if (rawValue === "" && ["description"].includes(field)) value = null;
 
-  const data: Record<string, string | number | boolean | null> = { [field]: value };
-
   switch (model) {
-    case "functionalDomain":
-      await prisma.functionalDomain.update({ where: { id }, data: data as Prisma.FunctionalDomainUpdateInput });
+    case "functionalDomain": {
+      const data =
+        field === "name" ? { name: String(value) } :
+        field === "description" ? { description: String(value ?? "") } :
+        { color: String(value) };
+      await prisma.functionalDomain.update({ where: { id }, data });
       break;
-    case "symptom":
-      await prisma.symptom.update({ where: { id }, data: data as Prisma.SymptomUpdateInput });
+    }
+    case "symptom": {
+      const data =
+        field === "name" ? { name: String(value) } :
+        { description: value === null ? null : String(value) };
+      await prisma.symptom.update({ where: { id }, data });
       break;
-    case "trigger":
-      await prisma.trigger.update({ where: { id }, data: data as Prisma.TriggerUpdateInput });
+    }
+    case "trigger": {
+      const data =
+        field === "name" ? { name: String(value) } :
+        field === "className" ? { className: String(value) } :
+        { description: value === null ? null : String(value) };
+      await prisma.trigger.update({ where: { id }, data });
       break;
-    case "question":
-      await prisma.question.update({ where: { id }, data: data as Prisma.QuestionUpdateInput });
+    }
+    case "question": {
+      const data =
+        field === "prompt" ? { prompt: String(value) } :
+        field === "category" ? { category: String(value) } :
+        { isActive: Boolean(value) };
+      await prisma.question.update({ where: { id }, data });
       break;
-    case "answerOption":
-      await prisma.answerOption.update({ where: { id }, data: data as Prisma.AnswerOptionUpdateInput });
+    }
+    case "answerOption": {
+      const data = field === "label" ? { label: String(value) } : { value: String(value) };
+      await prisma.answerOption.update({ where: { id }, data });
       break;
-    case "phenotype":
-      await prisma.phenotype.update({ where: { id }, data: data as Prisma.PhenotypeUpdateInput });
+    }
+    case "phenotype": {
+      const data = field === "name" ? { name: String(value) } : { description: String(value) };
+      await prisma.phenotype.update({ where: { id }, data });
       break;
-    case "carePathway":
-      await prisma.carePathway.update({ where: { id }, data: data as Prisma.CarePathwayUpdateInput });
+    }
+    case "carePathway": {
+      const data =
+        field === "name" ? { name: String(value) } :
+        field === "description" ? { description: String(value) } :
+        { steps: String(value) };
+      await prisma.carePathway.update({ where: { id }, data });
       break;
-    case "scoreRule":
-      await prisma.scoreRule.update({ where: { id }, data: data as Prisma.ScoreRuleUpdateInput });
+    }
+    case "scoreRule": {
+      const data = field === "weight" ? { weight: Number(value) } : { explanation: String(value) };
+      await prisma.scoreRule.update({ where: { id }, data });
       break;
+    }
   }
 
   revalidatePath("/admin");

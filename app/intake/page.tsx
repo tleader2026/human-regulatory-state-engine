@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import type { AnswerOption, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { submitIntake } from "./actions";
+
+export const dynamic = "force-dynamic";
 
 type IntakeQuestion = Prisma.QuestionGetPayload<{
   include: { answerOptions: true };
 }>;
+type IntakeAnswerOption = IntakeQuestion["answerOptions"][number];
 
 type IntakeSection = readonly [string, IntakeQuestion[]];
 
@@ -59,7 +62,7 @@ export default async function IntakePage() {
                 <fieldset key={question.id}>
                   <legend className="text-sm font-medium text-ink">{question.prompt}</legend>
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    {question.answerOptions.map((option: AnswerOption) => (
+                    {question.answerOptions.map((option: IntakeAnswerOption) => (
                       <label key={option.id} className="focus-within:ring-3 rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink focus-within:ring-blue-200">
                         <input className="mr-2" type="radio" name={question.code} value={option.id} required />
                         {option.label}
