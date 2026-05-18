@@ -78,6 +78,290 @@ const timings = ["immediate", "delayed 2-8 hours", "next-day crash", "nighttime"
 const interventions = [["Famotidine", "H2"], ["Hydroxyzine", "H1"], ["Acyclovir", "antiviral"], ["CoQ10", "mitochondrial"], ["Electrolytes", "autonomic"], ["Hydration", "autonomic"], ["Compression", "autonomic"], ["Sleep restoration", "circadian"], ["Exercise conditioning", "conditioning"], ["Steroids", "anti-inflammatory"], ["Red light", "circadian"], ["Cyclobenzaprine", "sleep"]];
 const outcomes = [["Daily function", "0-10"], ["Head pressure", "0-10"], ["Cognitive clarity", "0-10"], ["Sleep quality", "0-10"], ["Exertion recovery", "hours"], ["Food tolerance", "0-10"]];
 
+type BiomarkerSeed = readonly [name: string, sampleType: string, description: string, diagnosticTest: string];
+type ObservableFindingSeed = readonly [name: string, findingType: string, polarity: string, description: string];
+type TemporalWindowSeed = readonly [name: string, phase: string, description: string];
+type DiagnosticEvidenceSeed = readonly [
+  testName: string,
+  targetType: "domain" | "phenotype" | "mechanism" | "trigger" | "intervention",
+  targetLabel: string,
+  findingName: string,
+  windowName: string,
+  weight: number,
+  evidenceTier: string,
+  explanation: string,
+  discriminates: string
+];
+type WeightedEdgeSeed = readonly [
+  sourceType: string,
+  sourceLabel: string,
+  targetType: string,
+  targetLabel: string,
+  relation: string,
+  direction: string,
+  weight: number,
+  explanation: string
+];
+
+const diagnosticTests = [
+  {
+    name: "EBV early antigen and serology pattern",
+    category: "Viral persistence",
+    description: "Serologic pattern review for EBV reactivation signals in the context of post-viral relapse patterns.",
+    cost: "moderate",
+    invasiveness: "blood draw",
+    accessibility: "commonly available through clinical laboratories",
+    specificity: "context-dependent",
+    sensitivity: "context-dependent",
+    mechanisticRelevance: "Useful for separating viral-reactivation-suspected patterns from broader immune activation signals.",
+    temporalRelevance: "Most useful during relapse windows or persistent post-viral flare patterns.",
+    falsePositiveContexts: "Past exposure, nonspecific immune activation, and assay variability can complicate interpretation.",
+    interpretationCaution: "A positive or negative result does not confirm or exclude LongCovid; it only informs a competing hypothesis."
+  },
+  {
+    name: "Lymphocyte subset flow cytometry",
+    category: "Immune profiling",
+    description: "CD4, CD8, CD19 B-cell, and NK-cell distribution review for immune-surveillance patterning.",
+    cost: "moderate to high",
+    invasiveness: "blood draw",
+    accessibility: "specialty clinical laboratory",
+    specificity: "moderate",
+    sensitivity: "moderate",
+    mechanisticRelevance: "Helps evaluate whether immune cell distribution supports surveillance, exhaustion, or B-cell persistence hypotheses.",
+    temporalRelevance: "Most informative in chronic fluctuating or recurrent flare states.",
+    falsePositiveContexts: "Recent infections, vaccination, medications, and autoimmune overlap can shift lymphocyte subsets.",
+    interpretationCaution: "Subset changes require clinical context and trend review rather than one-off interpretation."
+  },
+  {
+    name: "CBC with differential and eosinophil trend",
+    category: "Accessible screening",
+    description: "Routine blood count trend focused on eosinophils and broad inflammatory context.",
+    cost: "low",
+    invasiveness: "blood draw",
+    accessibility: "widely available",
+    specificity: "low to moderate",
+    sensitivity: "low to moderate",
+    mechanisticRelevance: "Low-cost discriminator for allergic, eosinophilic, inflammatory, or medication-related signal environments.",
+    temporalRelevance: "Best interpreted as a trend across flare, baseline, and recovery windows.",
+    falsePositiveContexts: "Allergies, parasites, medications, asthma, and many non-LongCovid conditions can alter eosinophils.",
+    interpretationCaution: "Normal values do not rule out mast-cell, histamine, or immune dysregulation hypotheses."
+  },
+  {
+    name: "Serum tryptase",
+    category: "Mast-cell markers",
+    description: "Blood marker often interpreted around suspected mast-cell activation contexts.",
+    cost: "moderate",
+    invasiveness: "blood draw",
+    accessibility: "available but timing-sensitive",
+    specificity: "moderate when timed to events",
+    sensitivity: "limited",
+    mechanisticRelevance: "Can help discriminate mast-cell activation signals from nonspecific food intolerance or autonomic post-meal shifts.",
+    temporalRelevance: "Most useful when collected near acute flushing, itching, or systemic reaction windows.",
+    falsePositiveContexts: "Timing, baseline variation, clonal mast-cell disorders, and lab handling affect interpretation.",
+    interpretationCaution: "A normal tryptase does not exclude mediator-driven symptoms."
+  },
+  {
+    name: "Urinary histamine and prostaglandin metabolites",
+    category: "Mast-cell mediators",
+    description: "Mediator metabolite testing used to evaluate histamine/prostaglandin signal environments.",
+    cost: "moderate to high",
+    invasiveness: "urine collection",
+    accessibility: "specialty laboratory",
+    specificity: "moderate",
+    sensitivity: "timing-dependent",
+    mechanisticRelevance: "Adds observability for mediator release when food, pollen, H1/H2 response, or flushing patterns cluster.",
+    temporalRelevance: "Most informative when paired with trigger windows or flare diaries.",
+    falsePositiveContexts: "Diet, medications, collection timing, and handling can affect results.",
+    interpretationCaution: "Mediator results should be interpreted as uncertainty-reduction signals, not standalone diagnoses."
+  },
+  {
+    name: "Tilt-table or active stand autonomic testing",
+    category: "Autonomic function",
+    description: "Structured HR/BP response measurement during posture change.",
+    cost: "moderate",
+    invasiveness: "noninvasive functional testing",
+    accessibility: "specialty clinic or simplified active stand protocol",
+    specificity: "moderate",
+    sensitivity: "moderate",
+    mechanisticRelevance: "Helps distinguish autonomic instability from primary metabolic fatigue or histamine-only trigger patterns.",
+    temporalRelevance: "Best measured when postural symptoms are active and hydration/compression state is documented.",
+    falsePositiveContexts: "Deconditioning, medications, dehydration, anxiety, and acute illness can affect results.",
+    interpretationCaution: "A normal result on one day may miss fluctuating dysautonomia."
+  },
+  {
+    name: "Cytokine panel",
+    category: "Inflammatory signaling",
+    description: "Multiplex inflammatory mediator panel for broad immune activation patterning.",
+    cost: "high",
+    invasiveness: "blood draw",
+    accessibility: "specialty or research laboratory",
+    specificity: "low to moderate",
+    sensitivity: "variable",
+    mechanisticRelevance: "Can support or weaken cytokine-propagation hypotheses when steroid responsiveness or inflammatory flares are prominent.",
+    temporalRelevance: "Most useful when collected during flare and compared with baseline.",
+    falsePositiveContexts: "Recent infection, exercise, sleep loss, autoimmune disease, and lab platform variability.",
+    interpretationCaution: "Cytokine panels are noisy and should be used to guide hypotheses, not certify mechanisms."
+  },
+  {
+    name: "Endothelial activation marker panel",
+    category: "Vascular signaling",
+    description: "Markers such as von Willebrand factor, D-dimer context, soluble adhesion markers, or related vascular activation signals.",
+    cost: "moderate to high",
+    invasiveness: "blood draw",
+    accessibility: "mixed clinical and specialty availability",
+    specificity: "context-dependent",
+    sensitivity: "context-dependent",
+    mechanisticRelevance: "Helps explore vascular coupling, endothelial activation, and head-pressure hypotheses.",
+    temporalRelevance: "Most useful during head-pressure, exertional, or inflammatory flare windows.",
+    falsePositiveContexts: "Recent infection, clotting risk, inflammation, medications, and comorbid vascular disease.",
+    interpretationCaution: "Vascular markers require clinician interpretation and do not identify a single causal pathway."
+  },
+  {
+    name: "Stool calprotectin",
+    category: "GI immune screening",
+    description: "Noninvasive stool marker for intestinal inflammatory signal context.",
+    cost: "low to moderate",
+    invasiveness: "stool sample",
+    accessibility: "widely available",
+    specificity: "moderate for intestinal inflammation",
+    sensitivity: "moderate",
+    mechanisticRelevance: "Helps separate GI immune inflammation from food-triggered histamine sensitivity or postprandial autonomic shifts.",
+    temporalRelevance: "Useful when GI symptoms, food-triggered flares, or post-meal dysfunction are active.",
+    falsePositiveContexts: "IBD, infection, NSAID use, and other intestinal inflammatory conditions.",
+    interpretationCaution: "It is a GI inflammation screen, not a LongCovid-specific marker."
+  },
+  {
+    name: "Intestinal permeability marker panel",
+    category: "GI barrier research",
+    description: "Research-oriented barrier markers such as zonulin-context assays or related permeability signals.",
+    cost: "moderate to high",
+    invasiveness: "blood or stool sample",
+    accessibility: "limited and platform-dependent",
+    specificity: "limited",
+    sensitivity: "variable",
+    mechanisticRelevance: "Explores whether food-triggered inflammatory or histamine patterns may involve gut-barrier signaling.",
+    temporalRelevance: "Most useful in post-meal or diet-linked flare windows.",
+    falsePositiveContexts: "Assay variability, GI disease, diet, infection, and nonstandard reference ranges.",
+    interpretationCaution: "This is best treated as exploratory research metadata, not a clinical conclusion."
+  },
+  {
+    name: "Metabolomics or organic acids profile",
+    category: "Metabolic systems",
+    description: "Broad energetic and redox-context profiling used for metabolic pattern generation.",
+    cost: "high",
+    invasiveness: "blood or urine sample",
+    accessibility: "specialty or research laboratory",
+    specificity: "low to moderate",
+    sensitivity: "variable",
+    mechanisticRelevance: "Can help prioritize mitochondrial, redox, and recovery-capacity hypotheses when PEM or energetic collapse dominates.",
+    temporalRelevance: "Best interpreted against exertional load, nutrition, sleep, and recovery timing.",
+    falsePositiveContexts: "Diet, supplements, medications, fasting state, and lab method variation.",
+    interpretationCaution: "Broad profiles generate hypotheses and require careful follow-up, not direct diagnosis."
+  },
+  {
+    name: "Microbiome sequencing",
+    category: "Microbiome research",
+    description: "Stool sequencing for microbial composition patterns related to GI and immune-state hypotheses.",
+    cost: "moderate to high",
+    invasiveness: "stool sample",
+    accessibility: "commercial or research availability",
+    specificity: "low",
+    sensitivity: "variable",
+    mechanisticRelevance: "Helps study diet-linked, histamine-linked, and GI immune dysregulation branches over time.",
+    temporalRelevance: "Most useful longitudinally across diet changes, flares, and recovery windows.",
+    falsePositiveContexts: "Diet, antibiotics, probiotics, geography, and sampling variability.",
+    interpretationCaution: "Microbiome results are research-oriented and not deterministic treatment instructions."
+  },
+  {
+    name: "Neuroinflammation PET imaging",
+    category: "Research imaging",
+    description: "Research-grade imaging approach for neuroinflammatory signal exploration.",
+    cost: "very high",
+    invasiveness: "imaging with tracer exposure",
+    accessibility: "research-limited",
+    specificity: "research-dependent",
+    sensitivity: "research-dependent",
+    mechanisticRelevance: "May help distinguish microglial/neuroimmune hypotheses in severe head-pressure or cognitive-gain patterns.",
+    temporalRelevance: "Most relevant in persistent neurocognitive-dominant states.",
+    falsePositiveContexts: "Tracer specificity, comorbid neurologic disease, inflammation, and protocol differences.",
+    interpretationCaution: "This is not routine clinical testing and should be framed as research observability."
+  }
+];
+
+const biomarkers: BiomarkerSeed[] = [
+  ["EBV early antigen", "blood", "Potential viral-reactivation context marker.", "EBV early antigen and serology pattern"],
+  ["CD19 B-cell percentage", "blood", "B-cell distribution signal for immune persistence hypotheses.", "Lymphocyte subset flow cytometry"],
+  ["NK-cell count or percentage", "blood", "Viral-surveillance context signal.", "Lymphocyte subset flow cytometry"],
+  ["Eosinophil trend", "blood", "Accessible allergic/inflammatory trend signal.", "CBC with differential and eosinophil trend"],
+  ["Serum tryptase", "blood", "Mast-cell activation context marker.", "Serum tryptase"],
+  ["Urinary histamine metabolites", "urine", "Mediator release context marker.", "Urinary histamine and prostaglandin metabolites"],
+  ["Orthostatic HR/BP response", "functional", "Autonomic response measurement.", "Tilt-table or active stand autonomic testing"],
+  ["Inflammatory cytokines", "blood", "Broad cytokine signaling context.", "Cytokine panel"],
+  ["Endothelial activation markers", "blood", "Vascular activation context.", "Endothelial activation marker panel"],
+  ["Stool calprotectin", "stool", "GI inflammatory context marker.", "Stool calprotectin"],
+  ["Barrier permeability markers", "blood or stool", "Exploratory gut-barrier context marker.", "Intestinal permeability marker panel"],
+  ["Redox and organic acid profile", "blood or urine", "Energetic and redox context signal.", "Metabolomics or organic acids profile"],
+  ["Microbial composition profile", "stool", "Longitudinal microbiome context.", "Microbiome sequencing"],
+  ["TSPO or related tracer signal", "imaging", "Research neuroinflammation observability.", "Neuroinflammation PET imaging"]
+];
+
+const observableFindings: ObservableFindingSeed[] = [
+  ["EBV early antigen signal", "biomarker", "positive", "EBV serology pattern that may support viral-reactivation-suspected hypotheses in context."],
+  ["Reduced or shifted NK-cell signal", "biomarker", "abnormal", "Immune-surveillance finding that may support viral persistence or immune exhaustion branches."],
+  ["Elevated eosinophil trend", "biomarker", "elevated", "Accessible signal that can support allergic, histamine, or inflammatory branch review."],
+  ["Mediator elevation near flare", "biomarker", "elevated", "Timed histamine/prostaglandin signal that can support mast-cell mediator hypotheses."],
+  ["Orthostatic tachycardia or BP instability", "functional", "abnormal", "Measured postural response supporting autonomic instability branch review."],
+  ["Inflammatory cytokine elevation", "biomarker", "elevated", "Broad inflammatory signal supporting cytokine-propagation hypotheses."],
+  ["Vascular activation signal", "biomarker", "elevated", "Endothelial or clotting-context signal supporting vascular coupling review."],
+  ["GI inflammatory signal", "biomarker", "elevated", "Stool-based signal that can separate intestinal inflammation from other post-meal branches."],
+  ["Energy metabolism shift", "biomarker", "abnormal", "Metabolic profile signal that can support mitochondrial/redox hypotheses."]
+];
+
+const temporalWindows: TemporalWindowSeed[] = [
+  ["Post-viral onset window", "early post-viral", "Signals appearing after infection onset may help separate post-viral persistence from gradual noninfectious patterns."],
+  ["Chronic fluctuating window", "chronic", "Signals repeated across relapsing/remitting phases can be more informative than isolated results."],
+  ["Post-exertional window", "24-48 hour PEM", "Signals collected after exertion can clarify metabolic, autonomic, or inflammatory recovery limits."],
+  ["Post-meal window", "0-8 hours after meals", "Signals collected around meal-linked flares can help distinguish GI immune, histamine, and autonomic branches."],
+  ["Nocturnal activation window", "nighttime", "Night-linked signals can clarify sleep/circadian and neuroimmune coupling hypotheses."],
+  ["Acute flare window", "active relapse", "Measurements during a flare can carry more discriminating value than baseline-only data."]
+];
+
+const diagnosticEvidenceRules: DiagnosticEvidenceSeed[] = [
+  ["EBV early antigen and serology pattern", "phenotype", "Viral-reactivation-suspected phenotype", "EBV early antigen signal", "Post-viral onset window", 3.2, "research-informed", "Viral-reactivation-suspected scoring makes EBV serology a higher-yield uncertainty reducer.", "viral persistence vs nonspecific immune activation"],
+  ["EBV early antigen and serology pattern", "mechanism", "NK cells", "Reduced or shifted NK-cell signal", "Chronic fluctuating window", 2.2, "hypothesis", "NK-cell surveillance signals can contextualize suspected viral persistence.", "viral surveillance failure vs broad inflammatory drift"],
+  ["Lymphocyte subset flow cytometry", "phenotype", "Viral-reactivation-suspected phenotype", "Reduced or shifted NK-cell signal", "Chronic fluctuating window", 2.8, "research-informed", "Flow cytometry can separate immune-surveillance patterns from symptom-only viral persistence hypotheses.", "B-cell persistence vs T-cell/NK-cell surveillance patterns"],
+  ["Lymphocyte subset flow cytometry", "mechanism", "CD19 B cells", "Reduced or shifted NK-cell signal", "Chronic fluctuating window", 2.6, "hypothesis", "B-cell distribution is relevant when antigen persistence signaling is high.", "B-cell persistence vs innate immune activation"],
+  ["CBC with differential and eosinophil trend", "phenotype", "Histamine-dominant regulatory phenotype", "Elevated eosinophil trend", "Acute flare window", 1.9, "clinical-adjacent", "Eosinophil trends are low-cost context for histamine/allergic branch review.", "allergic/eosinophilic context vs mediator-only symptoms"],
+  ["CBC with differential and eosinophil trend", "domain", "Immune / Inflammatory", "Elevated eosinophil trend", "Chronic fluctuating window", 1.4, "clinical-adjacent", "Routine inflammatory context can identify broad immune signals worth following.", "immune flare context vs isolated autonomic state"],
+  ["Serum tryptase", "phenotype", "Histamine-dominant regulatory phenotype", "Mediator elevation near flare", "Acute flare window", 2.6, "clinical-adjacent", "Timed tryptase can help discriminate mast-cell activation from nonspecific food sensitivity.", "mast-cell activation vs non-mast-cell food intolerance"],
+  ["Serum tryptase", "mechanism", "Mast cells", "Mediator elevation near flare", "Acute flare window", 2.8, "clinical-adjacent", "Mast-cell hypothesis scoring increases the informational value of timed mediator testing.", "mast-cell mediator release vs H1/H2 receptor sensitivity"],
+  ["Urinary histamine and prostaglandin metabolites", "phenotype", "Histamine-dominant regulatory phenotype", "Mediator elevation near flare", "Post-meal window", 3.0, "clinical-adjacent", "Food-triggered and H1/H2 response patterns make mediator metabolites more informative.", "histamine/prostaglandin mediator state vs autonomic postprandial dysfunction"],
+  ["Urinary histamine and prostaglandin metabolites", "intervention", "Famotidine", "Mediator elevation near flare", "Post-meal window", 2.2, "hypothesis", "H2 response strengthens the value of mediator observability.", "H2-linked vascular/GI signaling vs nonspecific symptom relief"],
+  ["Tilt-table or active stand autonomic testing", "phenotype", "Autonomic instability phenotype", "Orthostatic tachycardia or BP instability", "Chronic fluctuating window", 3.4, "clinical-adjacent", "Autonomic phenotype scoring makes structured posture response testing high-yield.", "POTS-like physiology vs primary fatigue or histamine-only patterns"],
+  ["Tilt-table or active stand autonomic testing", "domain", "Autonomic / POTS-like", "Orthostatic tachycardia or BP instability", "Acute flare window", 2.4, "clinical-adjacent", "Autonomic domain load benefits from direct HR/BP observability.", "fluid-balance instability vs stress-only amplification"],
+  ["Cytokine panel", "domain", "Immune / Inflammatory", "Inflammatory cytokine elevation", "Acute flare window", 2.6, "research", "Inflammatory domain scoring increases the value of flare-timed cytokine panels.", "cytokine propagation vs non-inflammatory symptom fluctuation"],
+  ["Cytokine panel", "mechanism", "Monocytes", "Inflammatory cytokine elevation", "Acute flare window", 2.3, "research", "Monocyte/cytokine propagation hypotheses are better tested during active flares.", "monocyte cytokine signaling vs downstream neuroimmune effects"],
+  ["Endothelial activation marker panel", "phenotype", "Neuroimmune / head-pressure phenotype", "Vascular activation signal", "Acute flare window", 2.7, "research-informed", "Head-pressure and neurovascular patterns raise the value of vascular activation markers.", "endothelial activation vs mast-cell vascular fullness"],
+  ["Endothelial activation marker panel", "mechanism", "Endothelial cells", "Vascular activation signal", "Post-exertional window", 2.8, "research-informed", "Endothelial coupling hypotheses are more discriminating when paired with exertional or head-pressure windows.", "vascular coupling dysfunction vs neuroimmune sensory gain"],
+  ["Stool calprotectin", "trigger", "Meals / glucose shifts", "GI inflammatory signal", "Post-meal window", 2.2, "clinical-adjacent", "Meal-linked dysfunction makes GI inflammatory screening more informative.", "intestinal inflammation vs postprandial autonomic shift"],
+  ["Stool calprotectin", "domain", "Histamine / Mast-cell", "GI inflammatory signal", "Post-meal window", 1.8, "clinical-adjacent", "Histamine/GI patterns can benefit from separating inflammation from mediator sensitivity.", "GI immune inflammation vs histamine threshold sensitivity"],
+  ["Intestinal permeability marker panel", "trigger", "Tomato / high-histamine foods", "GI inflammatory signal", "Post-meal window", 1.9, "research", "Food-triggered neuropathy patterns make gut-barrier signals research-relevant.", "gut-barrier signaling vs isolated mast-cell mediator release"],
+  ["Metabolomics or organic acids profile", "phenotype", "Metabolic fatigue phenotype", "Energy metabolism shift", "Post-exertional window", 3.1, "research", "Metabolic fatigue scoring increases the value of redox and energy-profile observability.", "ATP/redox limitation vs autonomic or inflammatory fatigue"],
+  ["Metabolomics or organic acids profile", "mechanism", "Mitochondria", "Energy metabolism shift", "Post-exertional window", 2.9, "research", "Mitochondrial hypothesis scoring is best discriminated against exertion/recovery timing.", "mitochondrial recovery limits vs deconditioning alone"],
+  ["Microbiome sequencing", "domain", "Histamine / Mast-cell", "GI inflammatory signal", "Chronic fluctuating window", 1.8, "research", "Histamine and food-triggered patterns can be studied longitudinally with microbiome context.", "microbiome-linked histamine load vs non-GI mediator sensitivity"],
+  ["Microbiome sequencing", "trigger", "Meals / glucose shifts", "GI inflammatory signal", "Post-meal window", 1.6, "research", "Meal-linked symptom shifts make microbiome context useful for longitudinal branch development.", "diet-linked microbiome state vs glucose/autonomic response"],
+  ["Neuroinflammation PET imaging", "phenotype", "Neuroimmune / head-pressure phenotype", "Inflammatory cytokine elevation", "Chronic fluctuating window", 1.8, "research", "Severe neurocognitive/head-pressure scoring can make research imaging relevant for study enrollment.", "microglial activation vs vascular coupling vs sensory gain"],
+  ["Neuroinflammation PET imaging", "mechanism", "Microglia", "Inflammatory cytokine elevation", "Chronic fluctuating window", 2.0, "research", "Microglial hypothesis scoring increases research imaging value when accessible.", "microglial activation vs peripheral inflammatory signaling"]
+];
+
+const weightedEdges: WeightedEdgeSeed[] = [
+  ["trigger", "Meals / glucose shifts", "mechanism", "Glucosensing neurons", "activates", "forward", 0.7, "Meal-linked dysfunction can route through glucosensing and autonomic postprandial pathways."],
+  ["domain", "Histamine / Mast-cell", "domain", "Autonomic / POTS-like", "amplifies", "bidirectional", 0.6, "Mediator release can amplify vascular tone and autonomic instability; autonomic stress can lower mediator thresholds."],
+  ["domain", "Immune / Inflammatory", "mechanism", "Microglia", "signals_to", "forward", 0.8, "Peripheral inflammatory signaling can increase neuroimmune hypothesis confidence."],
+  ["domain", "Metabolic / Mitochondrial", "domain", "Autonomic / POTS-like", "constrains", "bidirectional", 0.5, "Energy recovery limits and autonomic stress can reinforce post-exertional instability."],
+  ["domain", "Sleep / Circadian", "domain", "Immune / Inflammatory", "modulates", "bidirectional", 0.6, "Sleep disruption can alter immune thresholds, while inflammation can destabilize sleep architecture."]
+];
+
 const questions = [
   ["onset", "When did this regulatory-state pattern begin?", "onset", [["After a viral illness", "viral"], ["Gradually without a clear trigger", "gradual"], ["After a major stressor", "stress"], ["I am not sure", "unknown"]]],
   ["head_pressure", "How prominent is head pressure or cranial fullness?", "symptom", [["Not present", "none"], ["Mild or occasional", "mild"], ["Moderate and recurring", "moderate"], ["Severe or state-defining", "severe"]]],
@@ -155,16 +439,105 @@ function multiplier(value: string) {
   return 0;
 }
 
+async function seedDiagnosticGraph() {
+  await prisma.diagnosticEvidenceRule.deleteMany();
+  await prisma.weightedEdge.deleteMany();
+
+  const diagnosticTestByName = new Map<string, { id: string }>();
+  for (const test of diagnosticTests) {
+    const created = await prisma.diagnosticTest.upsert({
+      where: { name: test.name },
+      update: test,
+      create: test
+    });
+    diagnosticTestByName.set(created.name, created);
+  }
+
+  for (const [name, sampleType, description, testName] of biomarkers) {
+    await prisma.biomarker.upsert({
+      where: { name },
+      update: { sampleType, description, diagnosticTestId: diagnosticTestByName.get(testName)?.id },
+      create: { name, sampleType, description, diagnosticTestId: diagnosticTestByName.get(testName)?.id }
+    });
+  }
+
+  const findingByName = new Map<string, { id: string }>();
+  for (const [name, findingType, polarity, description] of observableFindings) {
+    const created = await prisma.observableFinding.upsert({
+      where: { name },
+      update: { findingType, polarity, description },
+      create: { name, findingType, polarity, description }
+    });
+    findingByName.set(created.name, created);
+  }
+
+  const temporalWindowByName = new Map<string, { id: string }>();
+  for (const [name, phase, description] of temporalWindows) {
+    const created = await prisma.temporalWindow.upsert({
+      where: { name },
+      update: { phase, description },
+      create: { name, phase, description }
+    });
+    temporalWindowByName.set(created.name, created);
+  }
+
+  const domainByName = new Map((await prisma.functionalDomain.findMany()).map((item) => [item.name, item]));
+  const phenotypeByName = new Map((await prisma.phenotype.findMany()).map((item) => [item.name, item]));
+  const mechanismByName = new Map((await prisma.mechanismHypothesis.findMany()).map((item) => [item.name, item]));
+  const triggerByName = new Map((await prisma.trigger.findMany()).map((item) => [item.name, item]));
+  const interventionByName = new Map((await prisma.intervention.findMany()).map((item) => [item.name, item]));
+
+  for (const [testName, targetType, targetLabel, findingName, windowName, weight, evidenceTier, explanation, discriminates] of diagnosticEvidenceRules) {
+    const data: Prisma.DiagnosticEvidenceRuleUncheckedCreateInput = {
+      diagnosticTestId: diagnosticTestByName.get(testName)!.id,
+      weight,
+      evidenceTier,
+      explanation,
+      discriminates,
+      observableFindingId: findingByName.get(findingName)?.id,
+      temporalWindowId: temporalWindowByName.get(windowName)?.id
+    };
+
+    if (targetType === "domain") data.functionalDomainId = domainByName.get(targetLabel)?.id;
+    if (targetType === "phenotype") data.phenotypeId = phenotypeByName.get(targetLabel)?.id;
+    if (targetType === "mechanism") data.mechanismHypothesisId = mechanismByName.get(targetLabel)?.id;
+    if (targetType === "trigger") data.triggerId = triggerByName.get(targetLabel)?.id;
+    if (targetType === "intervention") data.interventionId = interventionByName.get(targetLabel)?.id;
+
+    await prisma.diagnosticEvidenceRule.create({ data });
+  }
+
+  await prisma.weightedEdge.createMany({
+    data: weightedEdges.map(([sourceType, sourceLabel, targetType, targetLabel, relation, direction, weight, explanation]) => ({
+      sourceType,
+      sourceLabel,
+      targetType,
+      targetLabel,
+      relation,
+      direction,
+      weight,
+      explanation
+    }))
+  });
+}
+
 async function main() {
   const existingDomains = await prisma.functionalDomain.count();
   if (existingDomains > 0) {
-    console.log("Ontology seed data already exists; skipping seed.");
+    console.log("Core ontology seed data already exists; refreshing diagnostic graph seed.");
+    await seedDiagnosticGraph();
     return;
   }
 
   await prisma.patientAnswer.deleteMany();
   await prisma.sessionScore.deleteMany();
   await prisma.scoreRule.deleteMany();
+  await prisma.diagnosticEvidenceRule.deleteMany();
+  await prisma.weightedEdge.deleteMany();
+  await prisma.biomarker.deleteMany();
+  await prisma.observableFinding.deleteMany();
+  await prisma.temporalWindow.deleteMany();
+  await prisma.diagnosticTest.deleteMany();
   await prisma.answerOption.deleteMany();
   await prisma.question.deleteMany();
   await prisma.intakeSession.deleteMany();
@@ -265,6 +638,7 @@ async function main() {
   }
 
   await prisma.patient.create({ data: { name: "Demo Patient", email: "demo@example.local" } });
+  await seedDiagnosticGraph();
 }
 
 main()

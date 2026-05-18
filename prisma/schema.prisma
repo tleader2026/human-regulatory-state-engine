@@ -74,6 +74,7 @@ model FunctionalDomain {
   mechanisms  MechanismHypothesis[]
   scoreRules  ScoreRule[]
   scores      SessionScore[]
+  diagnosticEvidenceRules DiagnosticEvidenceRule[]
 }
 
 model RegionOrSystem {
@@ -101,6 +102,7 @@ model MechanismHypothesis {
   cellPopulation     CellPopulation?  @relation(fields: [cellPopulationId], references: [id])
   scoreRules         ScoreRule[]
   scores             SessionScore[]
+  diagnosticEvidenceRules DiagnosticEvidenceRule[]
 }
 
 model Symptom {
@@ -116,6 +118,7 @@ model Trigger {
   className   String
   description String?
   scoreRules  ScoreRule[]
+  diagnosticEvidenceRules DiagnosticEvidenceRule[]
 }
 
 model TimingPattern {
@@ -133,6 +136,7 @@ model Phenotype {
   pathway     CarePathway?  @relation(fields: [pathwayId], references: [id])
   scoreRules  ScoreRule[]
   scores      SessionScore[]
+  diagnosticEvidenceRules DiagnosticEvidenceRule[]
 }
 
 model Intervention {
@@ -142,6 +146,7 @@ model Intervention {
   description String?
   responses   InterventionResponse[]
   scoreRules  ScoreRule[]
+  diagnosticEvidenceRules DiagnosticEvidenceRule[]
 }
 
 model InterventionResponse {
@@ -157,6 +162,88 @@ model OutcomeMeasure {
   name        String   @unique
   scale       String
   description String?
+}
+
+model DiagnosticTest {
+  id                    String                   @id @default(cuid())
+  name                  String                   @unique
+  category              String
+  description           String
+  cost                  String
+  invasiveness          String
+  accessibility         String
+  specificity           String
+  sensitivity           String
+  mechanisticRelevance  String
+  temporalRelevance     String
+  falsePositiveContexts String
+  interpretationCaution String
+  createdAt             DateTime                 @default(now())
+  biomarkers            Biomarker[]
+  evidenceRules         DiagnosticEvidenceRule[]
+}
+
+model Biomarker {
+  id               String          @id @default(cuid())
+  name             String          @unique
+  sampleType       String
+  description      String
+  diagnosticTestId String?
+  diagnosticTest   DiagnosticTest? @relation(fields: [diagnosticTestId], references: [id], onDelete: SetNull)
+}
+
+model ObservableFinding {
+  id            String                   @id @default(cuid())
+  name          String                   @unique
+  findingType   String
+  polarity      String
+  description   String
+  evidenceRules DiagnosticEvidenceRule[]
+}
+
+model TemporalWindow {
+  id            String                   @id @default(cuid())
+  name          String                   @unique
+  phase         String
+  description   String
+  evidenceRules DiagnosticEvidenceRule[]
+}
+
+model DiagnosticEvidenceRule {
+  id                    String               @id @default(cuid())
+  diagnosticTestId      String
+  weight                Float
+  direction             String               @default("supports")
+  evidenceTier          String
+  explanation           String
+  discriminates         String
+  functionalDomainId    String?
+  phenotypeId           String?
+  mechanismHypothesisId String?
+  triggerId             String?
+  interventionId        String?
+  observableFindingId   String?
+  temporalWindowId      String?
+  diagnosticTest        DiagnosticTest        @relation(fields: [diagnosticTestId], references: [id], onDelete: Cascade)
+  functionalDomain      FunctionalDomain?     @relation(fields: [functionalDomainId], references: [id])
+  phenotype             Phenotype?            @relation(fields: [phenotypeId], references: [id])
+  mechanismHypothesis   MechanismHypothesis?  @relation(fields: [mechanismHypothesisId], references: [id])
+  trigger               Trigger?              @relation(fields: [triggerId], references: [id])
+  intervention          Intervention?         @relation(fields: [interventionId], references: [id])
+  observableFinding     ObservableFinding?    @relation(fields: [observableFindingId], references: [id])
+  temporalWindow        TemporalWindow?       @relation(fields: [temporalWindowId], references: [id])
+}
+
+model WeightedEdge {
+  id          String @id @default(cuid())
+  sourceType  String
+  sourceLabel String
+  targetType  String
+  targetLabel String
+  relation    String
+  direction   String
+  weight      Float
+  explanation String
 }
 
 model CarePathway {
