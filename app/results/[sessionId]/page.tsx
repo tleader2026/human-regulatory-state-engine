@@ -1,18 +1,33 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { ScoreBar } from "@/components/ScoreBar";
+import { databaseUnavailableMessage } from "@/lib/databaseStatus";
 import { prisma } from "@/lib/prisma";
 import { calculateSessionScores } from "@/lib/scoring";
 import type { RankedScore } from "@/lib/types";
 import type { Prisma } from "@prisma/client";
 
 type ResultDomain = Prisma.FunctionalDomainGetPayload<object>;
+type ResultSession = Prisma.IntakeSessionGetPayload<{
+  include: { patient: true };
+}>;
 
 export default async function ResultsPage({ params }: { params: { sessionId: string } }) {
-  const session = await prisma.intakeSession.findUnique({
-    where: { id: params.sessionId },
-    include: { patient: true }
-  });
+  let session: ResultSession | null;
+
+  try {
+    session = await prisma.intakeSession.findUnique({
+      where: { id: params.sessionId },
+      include: { patient: true }
+    });
+  } catch (error) {
+    return (
+      <main className="mx-auto max-w-7xl px-5 py-10">
+        <DatabaseUnavailable message={databaseUnavailableMessage(error)} />
+      </main>
+    );
+  }
   if (!session) notFound();
 
   const result = await calculateSessionScores(session.id);

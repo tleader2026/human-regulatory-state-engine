@@ -1,4 +1,6 @@
 import { AdminEditable } from "@/components/AdminEditable";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
+import { databaseUnavailableMessage } from "@/lib/databaseStatus";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -29,26 +31,39 @@ type ScoreRuleWithTargets = Prisma.ScoreRuleGetPayload<{
 }>;
 
 export default async function AdminPage() {
-  const [domains, symptoms, triggers, questions, phenotypes, pathways, scoreRules] = await Promise.all([
-    prisma.functionalDomain.findMany({ orderBy: { name: "asc" }, include: { mechanisms: true, regions: true } }),
-    prisma.symptom.findMany({ orderBy: { name: "asc" } }),
-    prisma.trigger.findMany({ orderBy: { name: "asc" } }),
-    prisma.question.findMany({ orderBy: { sortOrder: "asc" }, include: { answerOptions: { orderBy: { sortOrder: "asc" } } } }),
-    prisma.phenotype.findMany({ orderBy: { name: "asc" }, include: { pathway: true } }),
-    prisma.carePathway.findMany({ orderBy: { name: "asc" } }),
-    prisma.scoreRule.findMany({
-      take: 80,
-      orderBy: { id: "asc" },
-      include: {
-        answerOption: { include: { question: true } },
-        functionalDomain: true,
-        phenotype: true,
-        mechanismHypothesis: true,
-        trigger: true,
-        intervention: true
-      }
-    })
-  ]);
+  let databaseMessage: string | null = null;
+  let domains: DomainWithRelations[] = [];
+  let symptoms: AdminSymptom[] = [];
+  let triggers: AdminTrigger[] = [];
+  let questions: QuestionWithOptions[] = [];
+  let phenotypes: PhenotypeWithPathway[] = [];
+  let pathways: AdminCarePathway[] = [];
+  let scoreRules: ScoreRuleWithTargets[] = [];
+
+  try {
+    [domains, symptoms, triggers, questions, phenotypes, pathways, scoreRules] = await Promise.all([
+      prisma.functionalDomain.findMany({ orderBy: { name: "asc" }, include: { mechanisms: true, regions: true } }),
+      prisma.symptom.findMany({ orderBy: { name: "asc" } }),
+      prisma.trigger.findMany({ orderBy: { name: "asc" } }),
+      prisma.question.findMany({ orderBy: { sortOrder: "asc" }, include: { answerOptions: { orderBy: { sortOrder: "asc" } } } }),
+      prisma.phenotype.findMany({ orderBy: { name: "asc" }, include: { pathway: true } }),
+      prisma.carePathway.findMany({ orderBy: { name: "asc" } }),
+      prisma.scoreRule.findMany({
+        take: 80,
+        orderBy: { id: "asc" },
+        include: {
+          answerOption: { include: { question: true } },
+          functionalDomain: true,
+          phenotype: true,
+          mechanismHypothesis: true,
+          trigger: true,
+          intervention: true
+        }
+      })
+    ]);
+  } catch (error) {
+    databaseMessage = databaseUnavailableMessage(error);
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-10">
@@ -60,6 +75,8 @@ export default async function AdminPage() {
           Mechanisms remain hypothesis-layer language throughout the product.
         </p>
       </div>
+
+      {databaseMessage ? <DatabaseUnavailable message={databaseMessage} /> : null}
 
       <div className="grid gap-6">
         <section className="rounded-lg border border-line bg-white p-5 shadow-soft">

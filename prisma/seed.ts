@@ -156,6 +156,12 @@ function multiplier(value: string) {
 }
 
 async function main() {
+  const existingDomains = await prisma.functionalDomain.count();
+  if (existingDomains > 0) {
+    console.log("Ontology seed data already exists; skipping seed.");
+    return;
+  }
+
   await prisma.patientAnswer.deleteMany();
   await prisma.sessionScore.deleteMany();
   await prisma.scoreRule.deleteMany();

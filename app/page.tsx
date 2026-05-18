@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
+import { databaseUnavailableMessage } from "@/lib/databaseStatus";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -6,11 +8,28 @@ export const dynamic = "force-dynamic";
 type Metric = readonly [label: string, value: number];
 
 export default async function Home() {
-  const [domains, questions, phenotypes] = await Promise.all([
-    prisma.functionalDomain.count(),
-    prisma.question.count(),
-    prisma.phenotype.count()
-  ]);
+  let metrics: Metric[] = [
+    ["Functional domains", 0],
+    ["Adaptive questions", 0],
+    ["Phenotype candidates", 0]
+  ];
+  let databaseMessage: string | null = null;
+
+  try {
+    const [domains, questions, phenotypes] = await Promise.all([
+      prisma.functionalDomain.count(),
+      prisma.question.count(),
+      prisma.phenotype.count()
+    ]);
+
+    metrics = [
+      ["Functional domains", domains],
+      ["Adaptive questions", questions],
+      ["Phenotype candidates", phenotypes]
+    ];
+  } catch (error) {
+    databaseMessage = databaseUnavailableMessage(error);
+  }
 
   return (
     <main className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1.15fr_0.85fr]">
@@ -35,11 +54,8 @@ export default async function Home() {
         </div>
       </section>
       <section className="grid content-center gap-4">
-        {([
-          ["Functional domains", domains],
-          ["Adaptive questions", questions],
-          ["Phenotype candidates", phenotypes]
-        ] satisfies Metric[]).map(([label, value]: Metric) => (
+        {databaseMessage ? <DatabaseUnavailable message={databaseMessage} /> : null}
+        {metrics.map(([label, value]: Metric) => (
           <div key={label} className="rounded-lg border border-line bg-white p-6 shadow-soft">
             <div className="text-3xl font-semibold text-ink">{value}</div>
             <div className="mt-1 text-sm text-muted">{label}</div>

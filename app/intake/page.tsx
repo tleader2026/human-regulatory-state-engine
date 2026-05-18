@@ -1,3 +1,5 @@
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
+import { databaseUnavailableMessage } from "@/lib/databaseStatus";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { submitIntake } from "./actions";
@@ -12,11 +14,18 @@ type IntakeAnswerOption = IntakeQuestion["answerOptions"][number];
 type IntakeSection = readonly [string, IntakeQuestion[]];
 
 export default async function IntakePage() {
-  const questions = await prisma.question.findMany({
-    where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
-    include: { answerOptions: { orderBy: { sortOrder: "asc" } } }
-  });
+  let questions: IntakeQuestion[] = [];
+  let databaseMessage: string | null = null;
+
+  try {
+    questions = await prisma.question.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      include: { answerOptions: { orderBy: { sortOrder: "asc" } } }
+    });
+  } catch (error) {
+    databaseMessage = databaseUnavailableMessage(error);
+  }
 
   const sections = [
     ["Identity", questions.filter((question: IntakeQuestion) => ["onset"].includes(question.code))],
@@ -39,7 +48,9 @@ export default async function IntakePage() {
         </p>
       </div>
 
-      <form action={submitIntake} className="space-y-6">
+      {databaseMessage ? <DatabaseUnavailable message={databaseMessage} /> : null}
+
+      {!databaseMessage ? <form action={submitIntake} className="space-y-6">
         <section className="grid gap-4 rounded-lg border border-line bg-white p-5 shadow-soft md:grid-cols-2">
           <label className="text-sm font-medium text-ink">
             Name
@@ -83,7 +94,7 @@ export default async function IntakePage() {
             </button>
           </div>
         </div>
-      </form>
+      </form> : null}
     </main>
   );
 }
