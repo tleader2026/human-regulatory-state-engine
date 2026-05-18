@@ -41,7 +41,7 @@ export default async function Home() {
           LongCovid phenotype stratification
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-          A comprehensive review of symptoms into explainable states; this is not a diagnosis.
+          This ontology organizes LongCovid symptoms, triggers, timing patterns, and response signals into explainable state profiles that can support ongoing research by making complex patient experiences easier to compare, stratify, and study over time. It is not a diagnosis or final clinical model; it is a working research framework for hypothesis generation and phenotype refinement, with additional branches and mechanisms still being developed as evidence, longitudinal data, and patient-reported patterns evolve.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link className="focus-ring rounded-md bg-clinical px-5 py-3 font-medium text-white shadow-soft" href="/intake">
