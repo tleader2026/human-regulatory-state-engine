@@ -35,7 +35,7 @@ export default async function Home() {
     <main className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1.15fr_0.85fr]">
       <section className="flex min-h-[70vh] flex-col justify-center">
         <p className="mb-4 text-sm font-semibold uppercase tracking-wide text-clinical">
-          Dynamic regulatory-state ontology
+          Diagnostic Ontology
         </p>
         <h1 className="max-w-4xl text-4xl font-semibold leading-tight text-ink md:text-6xl">
           LongCovid phenotype stratification
